@@ -1,34 +1,12 @@
-import { useState } from "react";
-import {
-  PieChart,
-  Pie,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  Cell,
-} from "recharts";
+import { useSelector, useDispatch } from "react-redux";
+import { setPrincipal, setRate, setTime, calculateEMI } from "./redux/emiSlice";
+import { PieChart, Pie, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
 
 export default function EMICalculator() {
-  const [principal, setPrincipal] = useState(500000);
-  const [rate, setRate] = useState(10);
-  const [time, setTime] = useState(12);
-  const [emi, setEmi] = useState(0);
-  const [totalPayment, setTotalPayment] = useState(0);
-  const [totalInterest, setTotalInterest] = useState(0);
-
-  const calculateEMI = () => {
-    let monthlyRate = rate / (12 * 100);
-    let emiValue =
-      (principal * monthlyRate * Math.pow(1 + monthlyRate, time)) /
-      (Math.pow(1 + monthlyRate, time) - 1);
-
-    let totalPay = emiValue * time;
-    let interest = totalPay - principal;
-
-    setEmi(emiValue.toFixed(2));
-    setTotalPayment(totalPay.toFixed(2));
-    setTotalInterest(interest.toFixed(2));
-  };
+  const dispatch = useDispatch();
+  // access redux state
+  const { principal, rate, time, emi, totalInterest, totalPayment } =
+    useSelector((state) => state.emi);
 
   const chartData = [
     { name: "Principal", value: Number(principal) },
@@ -52,18 +30,64 @@ export default function EMICalculator() {
               <input
                 type="number"
                 value={principal}
-                onChange={(e) => setPrincipal(e.target.value)}
+                onChange={(e) => {
+                  const next = Number(e.target.value);
+                  const clamped = Math.min(2000000, Math.max(50000, next || 0));
+                  dispatch(setPrincipal(clamped));
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    dispatch(calculateEMI());
+                  }
+                }}
                 className="w-full p-2 border rounded-md"
               />
+              {/* Range Slider Below Input */}
+              <input
+                type="range"
+                min="50000"
+                max="2000000"
+                step="10000"
+                value={principal}
+                onChange={(e) => {
+                  const next = Number(e.target.value);
+                  const clamped = Math.min(2000000, Math.max(50000, next || 0));
+                  dispatch(setPrincipal(clamped));
+                }}
+                className="w-full mt-2"
+              />
             </div>
-
             <div className="mb-4">
               <label className="block font-medium">Interest Rate (%)</label>
               <input
                 type="number"
                 value={rate}
-                onChange={(e) => setRate(e.target.value)}
+                onChange={(e) => {
+                  const next = Number(e.target.value);
+                  const clamped = Math.min(30, Math.max(1, next || 0));
+                  dispatch(setRate(clamped));
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    dispatch(calculateEMI());
+                  }
+                }}
                 className="w-full p-2 border rounded-md"
+              />
+              <input
+                type="range"
+                min="1"
+                max="30"
+                step="0.1"
+                value={rate}
+                onChange={(e) => {
+                  const next = Number(e.target.value);
+                  const clamped = Math.min(30, Math.max(1, next || 0));
+                  dispatch(setRate(clamped));
+                }}
+                className="w-full mt-2"
               />
             </div>
 
@@ -72,18 +96,39 @@ export default function EMICalculator() {
               <input
                 type="number"
                 value={time}
-                onChange={(e) => setTime(e.target.value)}
+                onChange={(e) => {
+                  const next = Number(e.target.value);
+                  const clamped = Math.min(360, Math.max(6, next || 0));
+                  dispatch(setTime(clamped));
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    dispatch(calculateEMI());
+                  }
+                }}
                 className="w-full p-2 border rounded-md"
               />
+              <input
+                type="range"
+                min="6"
+                max="360"
+                step="6"
+                value={time}
+                onChange={(e) => {
+                  const next = Number(e.target.value);
+                  const clamped = Math.min(360, Math.max(6, next || 0));
+                  dispatch(setTime(clamped));
+                }}
+                className="w-full mt-2"
+              />
             </div>
-
             <button
-              onClick={calculateEMI}
+              onClick={() => dispatch(calculateEMI())}
               className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition"
             >
               Calculate
-            </button>
-            
+            </button>            
           </div>
 
           {/* Right: Pie Chart */}
