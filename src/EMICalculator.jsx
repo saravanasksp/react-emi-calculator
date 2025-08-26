@@ -1,5 +1,6 @@
 import { useSelector, useDispatch } from "react-redux";
 import { setPrincipal, setRate, setTime, calculateEMI } from "./redux/emiSlice";
+import { useEffect, useState } from "react";
 import { PieChart, Pie, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
 
 export default function EMICalculator() {
@@ -7,6 +8,14 @@ export default function EMICalculator() {
   // access redux state
   const { principal, rate, time, emi, totalInterest, totalPayment } =
     useSelector((state) => state.emi);
+
+  // Keep a local string so users can type with leading zeros without flicker
+  const [principalInput, setPrincipalInput] = useState(String(principal ?? 0));
+
+  // Sync local input string when principal changes from other sources (e.g., range)
+  useEffect(() => {
+    setPrincipalInput(String(principal ?? 0));
+  }, [principal]);
 
   const chartData = [
     { name: "Principal", value: Number(principal) },
@@ -28,31 +37,55 @@ export default function EMICalculator() {
             <div className="mb-4">
               <label className="block font-medium">Loan Amount (₹)</label>
               <input
-                type="number"
-                value={principal}
+                type="text"
+                inputMode="numeric"
+                value={principalInput}
                 onChange={(e) => {
-                  const next = Number(e.target.value);
-                  const clamped = Math.min(2000000, Math.max(50000, next || 0));
+                  const raw = e.target.value;
+                  // Allow empty string for typing convenience
+                  if (raw === "") {
+                    setPrincipalInput("");
+                    dispatch(setPrincipal(0));
+                    return;
+                  }
+                  // Keep only digits
+                  const digits = raw.replace(/\D/g, "");
+                  setPrincipalInput(digits);
+                  const numeric = Number(digits || "0");
+                  const clamped = Math.min(5000000, Math.max(0, numeric));
                   dispatch(setPrincipal(clamped));
+                }}
+                onBlur={() => {
+                  // Normalize on blur: strip leading zeros but keep 0
+                  const normalized = (principalInput || "0").replace(/^0+/, "");
+                  setPrincipalInput(normalized === "" ? "0" : normalized);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
+                    // Normalize before calculate
+                    const normalized = (principalInput || "0").replace(/^0+/, "");
+                    setPrincipalInput(normalized === "" ? "0" : normalized);
                     dispatch(calculateEMI());
                   }
                 }}
                 className="w-full p-2 border rounded-md"
+                min="0"
+                max="5000000"
               />
               {/* Range Slider Below Input */}
               <input
                 type="range"
-                min="50000"
-                max="2000000"
+                min="0"
+                max={Math.max(5000000, Number((principalInput || "0").replace(/^0+/, "") || "0"))}
                 step="10000"
                 value={principal}
                 onChange={(e) => {
                   const next = Number(e.target.value);
-                  const clamped = Math.min(2000000, Math.max(50000, next || 0));
+                  const clamped = Math.min(
+                    Math.max(5000000, Number((principalInput || "0").replace(/^0+/, "") || "0")),
+                    Math.max(0, next || 0)
+                  );
                   dispatch(setPrincipal(clamped));
                 }}
                 className="w-full mt-2"
